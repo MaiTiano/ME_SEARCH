@@ -11,7 +11,7 @@
 #define START_SEARCH_PRED
 
 
-int blocksize = 16;
+int blocksize = 4;
 char seqName[20];	//argv[1]
 int width, height;   //argv[2]£¬ argv[3]
 int numFrames = 200;	//argv[4]
@@ -48,7 +48,7 @@ unsigned char **out;
 FILE *seqFile;
 FILE *fmv, *fmse; // two files to record the MV and SAD info of searched blocks.
 FILE *p_stat_SAD_MV;// to be used in the function of Stat_calculation() 
-
+/*
 const int DIST[65]=
 {
        0,    2,    8,   18,   32,   50,   72,   98, 
@@ -61,7 +61,7 @@ const int DIST[65]=
     6272, 6498, 6728, 6962, 7200, 7442, 7688, 7938, 
     8192
 }; 
-
+*/
 /***********************************************************************
  *
  * \Input:
