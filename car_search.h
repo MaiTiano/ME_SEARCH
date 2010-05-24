@@ -1,3 +1,12 @@
+/*****************************************
+ * The header file for macro parameters
+ * and function declaration
+ *
+ * Date: May 2010
+ * Author: JL
+  ****************************************/
+
+
 #define INT_MIN     (-2147483647 - 1) /* minimum (signed) int value */
 #define INT_MAX       2147483647    /* maximum (signed) int value */
 
