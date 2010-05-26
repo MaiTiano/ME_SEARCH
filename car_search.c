@@ -15,8 +15,8 @@ int blocksize = 4;
 char seqName[20];	//argv[1]
 int width, height;   //argv[2]£¬ argv[3]
 int numFrames = 200;	//argv[4]
-int search_range = 16; 	//argv[5]
-int refnum = 1;	//argv[6]
+//int search_range /*= 16*/; 	//argv[5]
+int refnum /*= 1*/;	//argv[6]
 
 
 //typedef unsigned char byte;    //!< byte type definition
@@ -75,11 +75,12 @@ const int DIST[65]=
 int 
 GetMemory(int framewidth, 
 	  int frameheight, 
-	  int sr/*, int blocksize*//*,int ALL_REF_NUM*/)
+	  int SR/*, int blocksize*//*,int ALL_REF_NUM*/)
 {
     //int i,j;
     int memory_size = 0;
     //int refnum = ALL_REF_NUM;
+    int input_search_range = SR;
 
     memory_size += get_mem2D(&curFrameY, frameheight, framewidth); 
     memory_size += get_mem2D(&curFrameU, frameheight>>1, framewidth>>1); 
@@ -93,7 +94,7 @@ GetMemory(int framewidth,
     memory_size += get_mem2D(&mpFrameU, frameheight>>1, framewidth>>1); 
     memory_size += get_mem2D(&mpFrameV, frameheight>>1, framewidth>>1); 
 
-    memory_size += get_mem2D(&searchwindow, sr*2 + blocksize, sr*2 + blocksize);// to allocate search window according to the searchrange
+    memory_size += get_mem2D(&searchwindow, input_search_range*2 + blocksize, input_search_range*2 + blocksize);// to allocate search window according to the searchrange
    // memory_size += get_mem2D(&searchwindow, 80, 80);// if searchrange is 32, then only 32+1+32+15 pixels is needed in each row and col, therefore the range of 
     // search window is enough to be set to 80 !
 
@@ -270,9 +271,9 @@ int
 initSpiral(int SR)
 {
     int i, k, l;
-    int search_range = SR;
+    int input_search_range = SR;
 
-    maxSp = (search_range*2+1)*(search_range*2+1);
+    maxSp = (input_search_range*2+1)*(input_search_range*2+1);
     sx = (int*) calloc( maxSp, sizeof(int));
     if (sx == NULL)	return 1;
     sy = (int*) calloc( maxSp, sizeof(int));
@@ -281,7 +282,7 @@ initSpiral(int SR)
     sx[0] = 0;
     sy[0] = 0;
 
-    for (k=1, l=1; l<=search_range; l++)
+    for (k=1, l=1; l <= input_search_range; l++)
     {
 	for (i=-l+1; i< l; i++)
 	{
@@ -349,6 +350,9 @@ LoadSearchWindow(int center_x,
 
     return 0;
 }
+
+
+
 /*!**************************************************************************************************
  * 
  * In this function surrounding MV and SAD are combined to get the MV prediction and SAD prediction
@@ -600,9 +604,46 @@ check_MB_availability(int abcd_address,
     return 1;
 
 }
+
+
+
+/***************************************************************
+ * \Fuction:
+ *  Dynamic search range decision
+ *  
+ *  To decide a adaptive search range for the search window
+ *     loading and motion search.
+ *
+ * \Input:
+ *  input_SR, 
+ * 
+ * \Output:
+ *  dsr
+ *
+ ****************************************************************/
+int DYNAMIC_SEARCH_RANGE(int input_SR)
+{
+    int dsr; /*output dynamic search range*/
+
+    /*if qcif*/
+ 
+    return 0;
+
+}
+
+
+
+
+
+
+
+
+
+
+
 /********************************************************************************
  *
- * This is the main search process 
+ * This is the core search process 
  *  
  * This function deal with the whole frame, every MB will be processed within 
  * this process. 
@@ -615,7 +656,9 @@ ME_SEARCH(int SR,
 {
     Block_jl currblk/*, block_a, block_b, block_c*/;
 
-
+    /*Current search range for the current block is initialized to be the input SR
+     * it will be changed after Dynamic search range scheme used*/
+    int current_search_range = SR;
     int mvx, mvy, mvt;//1
     int qmvx, qmvy;
     //int blkx, blky;
@@ -630,6 +673,7 @@ ME_SEARCH(int SR,
     int search_center_x, search_center_y;
     int sad_of_search_center; 
     //	short pred_sad;
+    int dsr; //dynamic search range
 
     // Initilize two buffer, and flush them at the end of this function. These two buffer recored the MV and SAD info of 
     // all the searched blocks for the current frame ONLY  !!!!!
@@ -694,24 +738,98 @@ ME_SEARCH(int SR,
 	    search_center_x = currblk.blkx + pred_mv_x;
 	    search_center_y = currblk.blky + pred_mv_y;
 
-	    
+	    /***********************************************************
+	     * 
+	     * Motion estimation process are seperated into two parts: 
+	     * [ME_1: search center position], 
+	     * [ME_2: left position except for the search center]
+	     *
+	     **********************************************************/	    
 
 	    /*For every frame, perform the search process*/
 	    for(t=0; t < refnum; t++)//4
 	    {
-		LoadSearchWindow(search_center_x, search_center_y, t , SR/*, width, height*/);//5
+		/***************************    [ME_1: only search center]    ******************************/
+		// {Note}In order to only search the pixels around the search center, here the search window is set to zero
+		//       therefore, in the LoadSearchWindow()function, only a block with the up-left corner locating at 
+		//       search center is loaded
+	        LoadSearchWindow(search_center_x, search_center_y, t, 0 /*current_search_range, width, height*/);//5
+		
+		k = 0;
+	
+		x = /*32*//*current_search_range*/0 + sx[k]; // k=0 , center is the (32,32) position in the search window. 	
+		y = /*32*//*current_search_range*/0 + sy[k];
 
-		for(k=0; k<maxSp; k++) //loop over full pel search points (spiral)
+		//if( (x >= 0) && (y >= 0) && (x < 2*current_search_range/*80 - blocksize*/) && (y < current_search_range*2/*80 - blocksize*/) )
+		{
+		    sad = 0;
+
+		    for(j = 0; j<blocksize; j++)		//Calculate block distortion
+		    {
+			for(i = 0; i<blocksize; i+=1)
+			{
+			    sad += abs(curFrameY[currblk.blky+j][currblk.blkx+i] - searchwindow[y+j][x+i]);// 
+			}
+			if(sad > min_sad)
+			    break;
+		    }
+
+		    if(sad < min_sad) // set mv
+		    {
+			min_sad = sad;
+
+			/* It should be noticed here: 2010.5.7
+			 * Since the predited position is used here as the search center. So, the actural search is performed around the search center not the (0,0) position.
+			 * Therefore, the final MV should not only include the full search spiral part, but also include the new search center shift(pred_mvx, pred_mvy)
+			 *
+			 * */
+			/*(1) Old version of (mvx,mvy) computation method, it is suitable for situation in which the (0,0) is used as the search center */
+
+			//mvx = sx[k];
+			//mvy = sy[k];
+
+			/*(2) New version of (mvx,mvy) computation method, it is suitable for situation in which the (pred_mvx,pred_mvy) is used as the search center */
+			mvx = sx[k] + pred_mv_x;
+			mvy = sy[k] + pred_mv_y;
+
+			mvt = t;//6
+
+			for(j = 0; j < blocksize; j++)
+			    for(i = 0; i < blocksize; i++)
+			    {
+				mpFrameY[currblk.blky+j][currblk.blkx+i] = searchwindow[y+j][x+i];
+			    }
+		    }
+		}
+
+		/* SAD value @ initial search point */
+		if(k == 0)
+		    sad_of_search_center = min_sad;
+
+
+
+		/*[DSR] to change the search range dynamically according to the SAD ratio*/
+		////DYNAMIC_SEARCH_RANGE(pred_SAD_med,);
+
+		////current_search_range = 
+		/*[DSR 1:] fixed sr*/
+	        LoadSearchWindow(search_center_x, search_center_y, t , current_search_range/*, width, height*/);//5
+		/*[DSR 2:] DSR sr*/
+		//LoadSearchWindow(search_center_x, search_center_y, t , dsr/*, width, height*/);//5
+
+
+		/***************************    [ME_2: left positions except for search center]    ******************************/
+		for(k=1; k<maxSp; k++) //loop over full pel search points (spiral)
 		{
 		    // x, y is the center of search window, 
 		    // according to the search window load method 1 and 2. (IN LINE 288.)
 		    // the x,y will be calculated in different ways.
 
 		    //--- Method 2. <-> LINE 288 method 2 ---
-		    x = /*32*/SR + sx[k]; // k=0 , center is the (32,32) position in the search window. 	
-		    y = /*32*/SR + sy[k];
+		    x = /*32*/current_search_range + sx[k]; // k=0 , center is the (32,32) position in the search window. 	
+		    y = /*32*/current_search_range + sy[k];
 
-		    if( (x >= 0) && (y >= 0) && (x < 2*SR/*80 - blocksize*/) && (y < SR*2/*80 - blocksize*/) )
+		    if( (x >= 0) && (y >= 0) && (x < 2*current_search_range/*80 - blocksize*/) && (y < current_search_range*2/*80 - blocksize*/) )
 		    {
 			sad=0;
 
@@ -753,9 +871,6 @@ ME_SEARCH(int SR,
 			}
 		    }
 
-		    /* SAD value @ initial search point */
-		    if(k == 0)
-		    sad_of_search_center = min_sad;
 
 		}
 			    // end of full pel search
@@ -1082,6 +1197,7 @@ int main(int argc,char **argv)
     int framewidth, frameheight;// padding frame, width+blocksize  height+blocksize
     int mb_num_in_row, mb_num_in_col;
     //--- Read configure data into the main function ---
+    int search_range;
 
     refnum = atoi(argv[6]);
     //level = atoi(argv[6]);
