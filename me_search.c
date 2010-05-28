@@ -47,6 +47,10 @@ unsigned char **out;
 FILE *seqFile;
 FILE *fmv, *fmse; // two files to record the MV and SAD info of searched blocks.
 FILE *p_stat_SAD_MV;// to be used in the function of Stat_calculation() 
+
+
+
+/*A predefined const matrix for MV Euclidean distance*/
 /*
 const int DIST[65]=
 {
