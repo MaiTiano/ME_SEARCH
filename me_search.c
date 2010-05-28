@@ -2,7 +2,7 @@
 
 #include "stdio.h"
 #include "string.h"
-#include "car_search.h"
+#include "me_search.h"
 #define MIN(a,b)  (((a) < (b)) ? (a) : (b)) 
 #define MAX(a,b)  (((a) > (b)) ? (a) : (b))
 /*Used in ME_SEARCH(), to determin the initial search position*/
@@ -743,13 +743,16 @@ ME_SEARCH(int SR,
 	     * Motion estimation process are seperated into two parts: 
 	     * [ME_1: search center position], 
 	     * [ME_2: left position except for the search center]
-	     *
+	     * 
+	     * \Date: 2010/05/225
 	     **********************************************************/	    
 
-	    /*For every frame, perform the search process*/
+	    /*[ME_1: search the center position]*/
+
 	    for(t=0; t < refnum; t++)//4
 	    {
 		/***************************    [ME_1: only search center]    ******************************/
+		
 		// {Note}In order to only search the pixels around the search center, here the search window is set to zero
 		//       therefore, in the LoadSearchWindow()function, only a block with the up-left corner locating at 
 		//       search center is loaded
@@ -808,6 +811,11 @@ ME_SEARCH(int SR,
 
 
 
+
+
+		/**************************************[ME_2: search the the rest of positions]***********************************/
+
+
 		/*[DSR] to change the search range dynamically according to the SAD ratio*/
 		////DYNAMIC_SEARCH_RANGE(pred_SAD_med,);
 
@@ -818,7 +826,6 @@ ME_SEARCH(int SR,
 		//LoadSearchWindow(search_center_x, search_center_y, t , dsr/*, width, height*/);//5
 
 
-		/***************************    [ME_2: left positions except for search center]    ******************************/
 		for(k=1; k<maxSp; k++) //loop over full pel search points (spiral)
 		{
 		    // x, y is the center of search window, 
